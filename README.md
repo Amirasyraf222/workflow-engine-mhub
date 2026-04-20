@@ -1,10 +1,10 @@
-# 🚀 Workflow Engine API Documentation
+# Workflow Engine API Documentation
 
 This document outlines all available APIs for the Workflow Engine system, including endpoints, methods, request bodies, and example usage.
 
 ---
 
-## 📌 Overview
+## Overview
 
 The Workflow Engine supports:
 
@@ -16,7 +16,7 @@ The Workflow Engine supports:
 
 ---
 
-# 🧩 API Endpoints
+# API Endpoints
 
 ---
 
@@ -225,7 +225,7 @@ GET /api/workflow-instances/1
 ---
 
 
-# 📌 Notes
+# Notes
 
 * Events are **predefined system values**
 * Each workflow template supports:
@@ -239,24 +239,133 @@ GET /api/workflow-instances/1
 ---
 
 
-# ✅ Final Output
+## Part 3 — Code review findings
 
-At the end of the workflow:
+Problems in the provided Node.js snippet:
+1. SQL injection in all queries
+2. Wrong condition logic: it rejects when status *is* `awaiting_action`, which is inverted
+3. No check that the step belongs to the instance id in the URL
+4. No authorization check
+5. No validation
+6. No transaction
+7. Race condition on concurrent approvals
+8. Missing not-found handling
+9. Missing proper status codes
+10. No audit trail
+11. No callback execution after final approval
+12. Raw DB calls mixed directly in route handler
 
-* All steps = `approved`
-* Workflow status = `approved`
+### Corrected version
+```js
+app.post("/api/workflow-instances/:id/steps/:stepId/approve", async (req, res) => {
+  const instanceId = Number(req.params.id);
+  const stepId = Number(req.params.stepId);
+  const userId = Number(req.body.user_id);
+  const comment = req.body.comment ?? null;
 
----
+  if (!Number.isInteger(instanceId) || !Number.isInteger(stepId) || !Number.isInteger(userId)) {
+    return res.status(422).json({ message: "Invalid input." });
+  }
 
-# 🎯 Summary
+  const client = await db.connect();
 
-This Workflow Engine demonstrates:
+  try {
+    await client.query("BEGIN");
 
-* Event-driven workflow triggering
-* Multi-step approval pipeline
-* Role-based and user-based assignment
-* Real-time workflow state tracking
+    const stepResult = await client.query(
+      `SELECT *
+       FROM workflow_instance_steps
+       WHERE id = $1 AND workflow_instance_id = $2
+       FOR UPDATE`,
+      [stepId, instanceId]
+    );
 
----
+    if (stepResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ message: "Workflow step not found." });
+    }
 
-🚀 Ready for demo / assessment submission
+    const step = stepResult.rows[0];
+
+    if (step.status !== "awaiting_action") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({ message: "Step is not awaiting action." });
+    }
+
+    const authResult = await client.query(
+      `SELECT 1
+       FROM workflow_instance_steps s
+       LEFT JOIN role_user ru ON ru.role_id = s.assigned_role_id AND ru.user_id = $2
+       WHERE s.id = $1
+         AND (s.assigned_user_id = $2 OR ru.user_id IS NOT NULL)
+       LIMIT 1`,
+      [stepId, userId]
+    );
+
+    if (authResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+      return res.status(403).json({ message: "You are not allowed to approve this step." });
+    }
+
+    await client.query(
+      `UPDATE workflow_instance_steps
+       SET status = 'approved',
+           actioned_by = $2,
+           decision = 'approved',
+           comment = $3,
+           actioned_at = NOW(),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [stepId, userId, comment]
+    );
+
+    await client.query(
+      `INSERT INTO workflow_step_actions
+       (workflow_instance_step_id, workflow_instance_id, acted_by, decision, comment, acted_at, created_at, updated_at)
+       VALUES ($1, $2, $3, 'approved', $4, NOW(), NOW(), NOW())`,
+      [stepId, instanceId, userId, comment]
+    );
+
+    const nextStepResult = await client.query(
+      `SELECT *
+       FROM workflow_instance_steps
+       WHERE workflow_instance_id = $1 AND sequence > $2
+       ORDER BY sequence ASC
+       LIMIT 1
+       FOR UPDATE`,
+      [instanceId, step.sequence]
+    );
+
+    if (nextStepResult.rows.length > 0) {
+      await client.query(
+        `UPDATE workflow_instance_steps
+         SET status = 'awaiting_action', updated_at = NOW()
+         WHERE id = $1`,
+        [nextStepResult.rows[0].id]
+      );
+
+      await client.query(
+        `UPDATE workflow_instances
+         SET status = 'in_progress', updated_at = NOW()
+         WHERE id = $1`,
+        [instanceId]
+      );
+    } else {
+      await client.query(
+        `UPDATE workflow_instances
+         SET status = 'approved', completed_at = NOW(), updated_at = NOW()
+         WHERE id = $1`,
+        [instanceId]
+      );
+    }
+
+    await client.query("COMMIT");
+    return res.status(200).json({ message: "Step approved successfully." });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    return res.status(500).json({ message: "Unexpected server error." });
+  } finally {
+    client.release();
+  }
+});
+```
