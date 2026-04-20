@@ -1,4 +1,21 @@
-# Workflow Engine API Documentation
+### Setup Instruction
+- Clone project using `git clone https://github.com/Amirasyraf222/workflow-engine-mhub.git`
+- Run `composer install` 
+- Rename `.env.example` to `.env`
+- Create database named "mhub" or based on your database name set in ENV
+- Run `php artisan migrate --seed` to migrate database and seed data
+- Run `php artisan key:generate` to generate key if required (if needed)
+- Run `php artisan serve` to run the backend system
+
+- Flow :
+    1. Serve `http://127.0.0.1:8000/workflow-ui/` to test on UI
+
+
+### Additional Info :
+- I added UI/UX for an easy testing on the API
+
+
+# Workflow Engine API Documentation 
 
 This document outlines all available APIs for the Workflow Engine system, including endpoints, methods, request bodies, and example usage.
 
@@ -221,20 +238,6 @@ POST /api/workflow-instance-steps/2/approve
 ```http
 GET /api/workflow-instances/1
 ```
-
----
-
-
-# Notes
-
-* Events are **predefined system values**
-* Each workflow template supports:
-
-  * Multiple steps
-  * Role or user assignment
-  * Ordered sequence execution
-* Only one step is active at a time
-* Workflow completes when all steps are approved
 
 ---
 
