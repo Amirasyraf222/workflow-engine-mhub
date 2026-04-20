@@ -224,26 +224,6 @@ GET /api/workflow-instances/1
 
 ---
 
-# 👥 Seeded Users
-
-| ID | Name                  |
-| -- | --------------------- |
-| 1  | Sarah Sales Manager   |
-| 2  | Farid Finance Manager |
-| 3  | Cindy Coordinator     |
-| 4  | Backup Sales Manager  |
-
----
-
-# 🏷️ Roles
-
-| ID | Role              |
-| -- | ----------------- |
-| 1  | Sales Manager     |
-| 2  | Finance Manager   |
-| 3  | Sales Coordinator |
-
----
 
 # 📌 Notes
 
@@ -258,16 +238,6 @@ GET /api/workflow-instances/1
 
 ---
 
-# 🧠 HTTP Methods Summary
-
-| Method | Usage           |
-| ------ | --------------- |
-| GET    | Retrieve data   |
-| POST   | Create / Action |
-| PUT    | Full update     |
-| PATCH  | Partial update  |
-
----
 
 # ✅ Final Output
 
