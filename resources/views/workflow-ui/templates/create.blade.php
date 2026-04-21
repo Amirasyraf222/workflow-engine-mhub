@@ -7,8 +7,8 @@
     <div style="background:#eff6ff; border:1px solid #bfdbfe; color:#1e3a8a; padding:14px; border-radius:10px; margin-bottom:18px;">
         <strong>Demo note:</strong><br>
         Use this seeded flow for the easiest demo:
-        <br>• Step 1 = <strong>Sales Manager</strong>
-        <br>• Step 2 = <strong>Farid Finance Manager</strong>
+        <br>• Step 1 = <strong>Beckham - Sales Manager</strong>
+        <br>• Step 2 = <strong>Ronaldinho - Finance Manager</strong>
     </div>
 
     <form id="templateForm">
